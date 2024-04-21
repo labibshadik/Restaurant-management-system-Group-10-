@@ -10,9 +10,9 @@ import Bkash from "../../components/bkash";
 const CartPage = () => {
   const { user } = useContext(AuthContext);
   const [cart, refetch] = useCart();
-  const [cartItems, setCartItems] = useState([]);
+  const [cartItems, setCartItems] = useState(cart);
   const [couponCode, setCouponCode] = useState("");
-  const [discount, setDiscount] = useState(0); // Initial discount is zero
+  const [discount, setDiscount] = useState(0);
 
   // Calculate the total price for each item in the cart
   const calculateTotalPrice = (item) => {
@@ -20,7 +20,7 @@ const CartPage = () => {
   };
 
   // Calculate the cart subtotal
-  const cartSubtotal = cart.reduce((total, item) => {
+  const cartSubtotal = cartItems.reduce((total, item) => {
     return total + calculateTotalPrice(item);
   }, 0);
 
@@ -35,8 +35,58 @@ const CartPage = () => {
     setDiscount(fixedDiscountAmount);
   };
 
-  // delete an item
-  const handleDelete = (item) => {
+  // Handle increasing quantity
+  const handleIncrease = async (item) => {
+    try {
+      const updatedItem = { ...item, quantity: item.quantity + 1 };
+      await axios.put(`http://localhost:6001/carts/${item._id}`, updatedItem);
+      const updatedCartItems = cartItems.map((cartItem) =>
+        cartItem._id === item._id ? updatedItem : cartItem
+      );
+      setCartItems(updatedCartItems);
+      refetch();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Handle decreasing quantity
+  const handleDecrease = async (item) => {
+    if (item.quantity > 1) {
+      try {
+        const updatedItem = { ...item, quantity: item.quantity - 1 };
+        await axios.put(`http://localhost:6001/carts/${item._id}`, updatedItem);
+        const updatedCartItems = cartItems.map((cartItem) =>
+          cartItem._id === item._id ? updatedItem : cartItem
+        );
+        setCartItems(updatedCartItems);
+        refetch();
+      } catch (error) {
+        console.error(error);
+      }
+    } else {
+      // If quantity is 1, remove the item from the cart
+      handleDelete(item);
+    }
+  };
+
+  // Handle updating quantity
+  const handleQuantityChange = async (item, newQuantity) => {
+    try {
+      const updatedItem = { ...item, quantity: newQuantity };
+      await axios.put(`http://localhost:6001/carts/${item._id}`, updatedItem);
+      const updatedCartItems = cartItems.map((cartItem) =>
+        cartItem._id === item._id ? updatedItem : cartItem
+      );
+      setCartItems(updatedCartItems);
+      refetch();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Handle deleting an item
+  const handleDelete = async (item) => {
     Swal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
@@ -45,19 +95,19 @@ const CartPage = () => {
       confirmButtonColor: "#3085d6",
       cancelButtonColor: "#d33",
       confirmButtonText: "Yes, delete it!",
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        axios
-          .delete(`http://localhost:6001/carts/${item._id}`)
-          .then((response) => {
-            if (response) {
-              refetch();
-              Swal.fire("Deleted!", "Your file has been deleted.", "success");
-            }
-          })
-          .catch((error) => {
-            console.error(error);
-          });
+        try {
+          await axios.delete(`http://localhost:6001/carts/${item._id}`);
+          const updatedCartItems = cartItems.filter(
+            (cartItem) => cartItem._id !== item._id
+          );
+          setCartItems(updatedCartItems);
+          refetch();
+          Swal.fire("Deleted!", "Your item has been deleted.", "success");
+        } catch (error) {
+          console.error(error);
+        }
       }
     });
   };
@@ -70,7 +120,7 @@ const CartPage = () => {
           {/* content */}
           <div className=" text-center px-4 space-y-7">
             <h2 className="md:text-5xl text-4xl font-bold md:leading-snug leading-snug">
-              Items Added to The<span className="text-aquagr"> Cart</span>
+              Items Added to The<span className="text-green"> Cart</span>
             </h2>
           </div>
         </div>
@@ -82,7 +132,7 @@ const CartPage = () => {
           <div className="">
             <div className="overflow-x-auto">
               <table className="table">
-                <thead className="bg-aquagr text-white rounded-sm">
+                <thead className="bg-green text-white rounded-sm">
                   <tr>
                     <th>#</th>
                     <th>Food</th>
@@ -174,11 +224,11 @@ const CartPage = () => {
                   Apply Discount
                 </button>
               </div>
-              <button  className="btn btn-md bg-aquagr text-white px-8 py-1">
+              <button  className="btn btn-md bg-green text-white px-8 py-1">
                 Cash delvery
               </button>
               <Link to="/bkash">
-        <button className="btn btn-md bg-aquagr text-white px-8 py-1">
+        <button className="btn btn-md bg-green text-white px-8 py-1">
           Proceed to Bkash
         </button>
       </Link>
@@ -189,7 +239,7 @@ const CartPage = () => {
         <div className="text-center mt-20">
           <p>Cart is empty. Please add products.</p>
           <Link to="/menu">
-            <button className="btn bg-aquagr text-white mt-3">
+            <button className="btn bg-green text-white mt-3">
               Back to Menu
             </button>
           </Link>
